@@ -128,7 +128,6 @@ async def main(limit: int | None) -> None:
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
 
-        # Process in batches so we can save progress periodically (resumable).
         BATCH = 30
         for i in range(0, len(todo), BATCH):
             batch_urls = todo[i : i + BATCH]
@@ -138,7 +137,7 @@ async def main(limit: int | None) -> None:
             for num, text in results:
                 if text:
                     chapters[num] = text
-            write_novel(novel_path, chapters)  # checkpoint after each batch
+            write_novel(novel_path, chapters)
             print(f"  ...saved progress ({len(chapters)} chapters so far)\n")
 
         await browser.close()

@@ -2,15 +2,12 @@ import asyncio
 import re
 from playwright.async_api import async_playwright
 
-# ── CONFIG ──────────────────────────────────────────────────
 URLS_FILE   = "all_chapters.txt"
 NOVEL_FILE  = "ancient_godly_monarch.txt"
 MIN_CHARS   = 200    # chapters below this are considered missing
 WORKERS     = 3      # lower workers for JS-heavy pages
 TIMEOUT     = 60000  # ms - increased timeout
-# ────────────────────────────────────────────────────────────
 
-# ── STEP 1: Find missing chapter numbers ────────────────────
 print("Scanning for missing chapters...")
 with open(NOVEL_FILE, "r", encoding="utf-8") as f:
     content = f.read()
@@ -27,7 +24,6 @@ while i < len(chapters_split) - 1:
 
 print(f"Found {len(missing_nums)} missing chapters\n")
 
-# ── STEP 2: Load URLs for missing chapters only ──────────────
 with open(URLS_FILE, "r") as f:
     all_urls = [line.strip() for line in f if line.strip()]
 
@@ -49,7 +45,6 @@ async def scrape_chapter(context, url, semaphore, total, counter):
         try:
             await page.goto(url, timeout=TIMEOUT, wait_until="networkidle")
 
-            # Wait until at least one <p> inside #chapter-content has real text (not empty)
             await page.wait_for_function(
                 """() => {
                     const ps = document.querySelectorAll('#chapter-content p');
@@ -109,7 +104,6 @@ async def main():
         print(f"Still locked/missing ({len(still_missing)}): {sorted(still_missing)[:20]}"
               f"{'...' if len(still_missing) > 20 else ''}")
 
-    # ── STEP 3: Patch novel file ─────────────────────────────
     if not new_content:
         print("Nothing to patch.")
         return

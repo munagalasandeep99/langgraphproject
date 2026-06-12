@@ -19,7 +19,7 @@ import config
 
 try:
     from neo4j import GraphDatabase
-except ImportError:  # neo4j package not installed
+except ImportError:
     GraphDatabase = None
 
 
@@ -52,9 +52,6 @@ def run_cypher(query: str, params: dict | None = None) -> list[dict]:
         return [record.data() for record in result]
 
 
-# --------------------------------------------------------------------------
-# Schema + writes (used by build_graph_db.py)
-# --------------------------------------------------------------------------
 def setup_schema() -> None:
     run_cypher(
         "CREATE CONSTRAINT character_name IF NOT EXISTS "
@@ -94,9 +91,6 @@ def upsert_relationship(
     )
 
 
-# --------------------------------------------------------------------------
-# Reads (used by the agents)
-# --------------------------------------------------------------------------
 def get_character_facts(name: str) -> dict | None:
     rows = run_cypher(
         """
@@ -148,7 +142,6 @@ def format_graph_facts(names: list[str]) -> str:
                 f"    • {rel['type']} with {rel['other']}: {rel.get('detail') or ''}".rstrip()
             )
 
-    # If exactly two characters were asked about, surface the direct edge too.
     if len(names) == 2:
         for edge in get_relationship_between(names[0], names[1]):
             ch = f" [ch. {edge['chapter']}]" if edge.get("chapter") else ""

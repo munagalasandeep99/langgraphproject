@@ -26,11 +26,10 @@ def build_graph():
 
     g.add_edge(START, "router")
 
-    # Conditional edge: read state["route"], jump to that specialist.
     g.add_conditional_edges(
         "router",
         lambda state: state["route"],
-        {name: name for name in SPECIALISTS},  # route value == node name
+        {name: name for name in SPECIALISTS},
     )
 
     for name in SPECIALISTS:

@@ -24,9 +24,6 @@ from retrieval import (
 )
 
 
-# --------------------------------------------------------------------------
-# Shared graph state
-# --------------------------------------------------------------------------
 class AgentState(TypedDict, total=False):
     query: str
     route: str                 # "character" | "plot" | "summary" | "analyser"
@@ -53,9 +50,6 @@ def _history_block(state: AgentState) -> str:
     return f"Previous conversation:\n{lines}\n"
 
 
-# --------------------------------------------------------------------------
-# Router
-# --------------------------------------------------------------------------
 ROUTER_PROMPT = """You are the router for a Q&A system about the novel "{title}".
 Classify the user's question into exactly one specialist and extract a chapter
 number or range if the question names one.
@@ -105,9 +99,6 @@ def router_node(state: AgentState) -> AgentState:
     return {"route": route, "chapter": chapter, "chapter_range": chapter_range}
 
 
-# --------------------------------------------------------------------------
-# Character agent
-# --------------------------------------------------------------------------
 def _extract_names(query: str) -> list[str]:
     """Ask the LLM for the character names in the query (for the graph lookup)."""
     if not neo4j_store.is_available():
@@ -128,7 +119,6 @@ def _extract_names(query: str) -> list[str]:
 
 def character_node(state: AgentState) -> AgentState:
     query = state["query"]
-    # Pull chunks from a few angles so relationships get both sides + the link.
     sub_queries = [
         query,
         f"{query} relationship",
@@ -138,7 +128,6 @@ def character_node(state: AgentState) -> AgentState:
     docs = multi_query_retrieve(sub_queries, k_each=max(3, config.K_CHARACTER // 3))
     context = format_context(docs)
 
-    # Enrich with structured facts from the Neo4j knowledge graph (if built).
     graph_facts = neo4j_store.format_graph_facts(_extract_names(query))
     if graph_facts:
         context = f"{graph_facts}\n\n---\n\n{context}"
@@ -163,16 +152,12 @@ Answer in detail:"""
     return {"answer": answer}
 
 
-# --------------------------------------------------------------------------
-# Plot agent
-# --------------------------------------------------------------------------
 def plot_node(state: AgentState) -> AgentState:
     query = state["query"]
     chapter = state.get("chapter")
-    # If a chapter was named, pin retrieval to it; else fall back to open search.
     docs = retrieve(query, k=config.K_PLOT, chapter=chapter)
     if not docs and chapter is not None:
-        docs = retrieve(query, k=config.K_PLOT)  # chapter empty? widen search
+        docs = retrieve(query, k=config.K_PLOT)
     context = format_context(docs)
 
     scope = f"Chapter {chapter}" if chapter is not None else "the relevant chapters"
@@ -194,9 +179,6 @@ Ordered account of events:"""
     return {"answer": answer}
 
 
-# --------------------------------------------------------------------------
-# Summary agent
-# --------------------------------------------------------------------------
 def summary_node(state: AgentState) -> AgentState:
     query = state["query"]
     rng = state.get("chapter_range")
@@ -228,12 +210,8 @@ Arc summary:"""
     return {"answer": answer}
 
 
-# --------------------------------------------------------------------------
-# Analyser agent
-# --------------------------------------------------------------------------
 def analyser_node(state: AgentState) -> AgentState:
     query = state["query"]
-    # Decompose into sub-questions for broad, cross-chapter coverage.
     llm = get_llm()
     decompose = f"""Break this question about "{config.NOVEL_TITLE}" into 3-4 short
 search queries that together cover everything needed to answer it well.
@@ -252,7 +230,6 @@ Question: {query}"""
     docs = multi_query_retrieve(sub_queries, k_each=max(3, config.K_ANALYSER // 4))
     context = format_context(docs)
 
-    # Add any structured character facts the graph knows about.
     graph_facts = neo4j_store.format_graph_facts(_extract_names(query))
     if graph_facts:
         context = f"{graph_facts}\n\n---\n\n{context}"
@@ -276,7 +253,6 @@ Synthesised answer:"""
     return {"answer": answer}
 
 
-# Map route string -> node, used by graph.py to wire conditional edges.
 SPECIALISTS = {
     "character": character_node,
     "plot": plot_node,

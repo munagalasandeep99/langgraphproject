@@ -1,16 +1,3 @@
-"""
-Chapter-aware ingestion pipeline.
-
-Difference from the old index.py:
-  - The novel is first split into chapters using the `\\nChapter N\\n====` delimiter
-    that test.py writes.
-  - Each chunk keeps a `chapter` number in its metadata.
-  - That lets the Plot and Summary agents retrieve *by chapter* instead of
-    hoping a blind similarity search lands on the right pages.
-
-Run:  python index.py
-"""
-
 import re
 from pathlib import Path
 
@@ -23,7 +10,6 @@ from qdrant_client.models import Distance, VectorParams
 
 import config
 
-# Matches the chapter headers test.py writes:  \nChapter 47\n========...\n
 CHAPTER_RE = re.compile(r"\nChapter (\d+)\n={40}\n")
 
 
@@ -33,7 +19,6 @@ def load_chapter_documents(path: Path) -> list[Document]:
     parts = CHAPTER_RE.split(text)
 
     docs: list[Document] = []
-    # re.split with one capture group yields: [pre, num, body, num, body, ...]
     i = 1
     while i < len(parts) - 1:
         chapter_num = int(parts[i])
@@ -62,7 +47,6 @@ def main() -> None:
         return
     print(f"Loaded {len(chapter_docs)} chapters.")
 
-    # Chunk *within* chapters; metadata (chapter, source) carries to every chunk.
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=config.CHUNK_SIZE,
         chunk_overlap=config.CHUNK_OVERLAP,
